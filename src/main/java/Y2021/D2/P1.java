@@ -1,0 +1,9 @@
+package Y2021.D2;
+
+public class P1 {
+    public static void main(String[] args) {
+        Logic logic = new Logic("src/main/java/Y2021/D2/pInput.txt", "P1");
+        logic.executeFileInstructions();
+        System.out.println(logic.calculatePuzzleOutput());
+    }
+}
