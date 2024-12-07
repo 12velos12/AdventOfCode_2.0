@@ -1,111 +1,117 @@
 package Y2024.D2;
 
 import CustomClasses.RyansFileClass;
-
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 public class Logic {
-    private ArrayList<ProductPair> productPairList = new ArrayList<>();
-    private ArrayList<ProductPair> productPairListWithOperators = new ArrayList<>();
-
-    private String mulRegex = "mul\\(\\d{1,3},\\d{1,3}\\)";
-    private String mulRegexWithOperators = "(mul\\(\\d{1,3},\\d{1,3}\\))|(do\\(\\))|(don't\\(\\))";
+    ArrayList<ArrayList<Integer>> reportArray = new ArrayList<>();
 
     public Logic(String filePath) {
         ArrayList<String> rawInput = RyansFileClass.fileToStringArray(filePath);
-        this.productPairList = initProductPairList(rawInput);
-        this.productPairListWithOperators = initProductPairListWithOperators(rawInput);
+        this.reportArray = buildReportArray(rawInput);
     }
 
-    private ArrayList<ProductPair> initProductPairList(ArrayList<String> rawInput){
-        ArrayList<ProductPair> productPairList = new ArrayList<>();
-        for (String rawLine : rawInput){
-            ArrayList<ProductPair> productPairsInLine = convertRawLineToProductPairList(rawLine);
-            for (ProductPair productPair : productPairsInLine){
-                productPairList.add(productPair);
+    private ArrayList<ArrayList<Integer>> buildReportArray(ArrayList<String> rawInput){
+        ArrayList<ArrayList<Integer>> reportArray = new ArrayList<>();
+        for(String rawReport : rawInput){
+            ArrayList<Integer> report = new ArrayList();
+            String[] stringReport = rawReport.split(" ");
+            for(String level : stringReport){
+                report.add(Integer.parseInt(level));
+            }
+            reportArray.add(report);
+        }
+
+        return reportArray;
+    }
+
+    private boolean levelsIncreased(int levelOne, int levelTwo){
+        return levelOne < levelTwo;
+    }
+
+    private boolean levelDifferenceIsBetweenOneAndThreeInclusive(int levelOne, int levelTwo){
+        return Math.abs(levelOne - levelTwo) >= 1 && Math.abs(levelOne - levelTwo) <= 3;
+    }
+
+    private boolean levelChangeIsSafe(int levelOne, int levelTwo, boolean levelsIncreasing){
+        if (!levelDifferenceIsBetweenOneAndThreeInclusive(levelOne, levelTwo)){
+            return false;
+        }
+        if (levelsIncreased(levelOne,levelTwo) != levelsIncreasing){
+            return false;
+        }
+        return true;
+    }
+
+    private boolean reportIsSafe(ArrayList<Integer> report){
+        boolean levelsIncreasing = true;
+        if (report.get(0) > report.get(1))
+            levelsIncreasing = false;
+
+        for(int i = 1; i < report.size(); i++){
+            int levelOne = report.get(i-1);
+            int levelTwo = report.get(i);
+            if (!levelChangeIsSafe(levelOne, levelTwo, levelsIncreasing)) return false;
+        }
+
+        return true;
+    }
+
+    private ArrayList<Integer> copyArrayWithoutSpecifiedIndex(ArrayList<Integer> originalArray, int indexToRemove){
+        ArrayList<Integer> copiedArray = new ArrayList<>();
+        for(int i = 0; i < originalArray.size(); i++){
+            if (indexToRemove == i) continue;
+            copiedArray.add(originalArray.get(i));
+        }
+
+        return copiedArray;
+    }
+
+    private int getProblemLevelIndex(ArrayList<Integer> report){
+        boolean levelsIncreasing = true;
+        if (report.get(0) > report.get(1))
+            levelsIncreasing = false;
+
+        for(int i = 1; i < report.size(); i++){
+            int levelOne = report.get(i-1);
+            int levelTwo = report.get(i);
+            if (!levelChangeIsSafe(levelOne, levelTwo, levelsIncreasing)) return i;
+        }
+        return -1;
+    }
+
+    private boolean reportIsSafeWithProblemDampener(ArrayList<Integer> report){
+        if (reportIsSafe(report)) return true;
+        if (reportIsSafe(copyArrayWithoutSpecifiedIndex(report,0))) return true;
+        int problemLevelIndex = getProblemLevelIndex(report);
+        return reportIsSafe(copyArrayWithoutSpecifiedIndex(report,problemLevelIndex)) || reportIsSafe(copyArrayWithoutSpecifiedIndex(report,problemLevelIndex - 1));
+    }
+
+    private int getSafeReportsCountWithoutProblemDampener(){
+        int safeReportsCount = 0;
+        for (ArrayList<Integer> report : reportArray){
+            if (reportIsSafe(report)){
+                safeReportsCount++;
             }
         }
-        return productPairList;
+        return safeReportsCount;
     }
 
-    private ArrayList<ProductPair> initProductPairListWithOperators(ArrayList<String> rawInput){
-        ArrayList<ProductPair> productPairList = new ArrayList<>();
-        String rawInputString = "";
-        for (String rawLine : rawInput){
-            rawInputString += rawLine;
+    private int getSafeReportsCountWithProblemDampener(){
+        int safeReportsCount = 0;
+        for (ArrayList<Integer> report : reportArray){
+            if (reportIsSafeWithProblemDampener(report)){
+                safeReportsCount++;
+            }
         }
-        ArrayList<ProductPair> productPairsInLine = convertRawLineToProductPairListWithOperators(rawInputString);
-        for (ProductPair productPair : productPairsInLine){
-            productPairList.add(productPair);
-        }
-        return productPairList;
+        return safeReportsCount;
     }
 
-    private ArrayList<ProductPair> convertRawLineToProductPairListWithOperators(String rawLine){
-        ArrayList<ProductPair> productPairList = new ArrayList<>();
-        ArrayList<String> mulStringListWithOperators = getMulStringListWithOperators(rawLine);
-        Boolean addMuls = true;
-        for (String mulString : mulStringListWithOperators){
-            if (mulString.matches("do\\(\\)"))
-                addMuls = true;
-            else if (mulString.matches("don't\\(\\)"))
-                addMuls = false;
-            else if (addMuls)
-                productPairList.add(convertMulStringToProductPair(mulString));
-        }
-        return productPairList;
+    public int runP1Program(){
+        return getSafeReportsCountWithoutProblemDampener();
     }
 
-    private ArrayList<ProductPair> convertRawLineToProductPairList(String rawLine){
-        ArrayList<ProductPair> productPairList = new ArrayList<>();
-        ArrayList<String> mulStringList = getMulStringList(rawLine);
-        for (String mulString : mulStringList){
-            productPairList.add(convertMulStringToProductPair(mulString));
-        }
-        return productPairList;
-    }
-
-    private ArrayList<String> getMulStringList(String rawLine){
-        ArrayList<String> mulStringList = new ArrayList<>();
-        Matcher m = Pattern.compile(mulRegex).matcher(rawLine);
-        while (m.find()) {
-            mulStringList.add(m.group());
-        }
-        return mulStringList;
-    }
-
-    private ArrayList<String> getMulStringListWithOperators(String rawLine){
-        ArrayList<String> mulStringList = new ArrayList<>();
-        Matcher m = Pattern.compile(mulRegexWithOperators).matcher(rawLine);
-        while (m.find()) {
-            mulStringList.add(m.group());
-        }
-        return mulStringList;
-    }
-
-    private ProductPair convertMulStringToProductPair(String mulString){
-        mulString = mulString.replaceAll("mul\\(","");
-        mulString = mulString.replaceAll("\\)","");
-        String[] productPair = mulString.split(",");
-        return new ProductPair(Integer.parseInt(productPair[0]),Integer.parseInt(productPair[1]));
-    }
-
-    private int multiplyThenAddAllProductPairs(ArrayList<ProductPair> productPairs){
-        int sum = 0;
-        for (ProductPair productPair : productPairs){
-            sum += productPair.getNumberX() * productPair.getNumberY();
-        }
-        return sum;
-    }
-
-    public void runP1Program(){
-        System.out.println(multiplyThenAddAllProductPairs(this.productPairList));
-    }
-
-    public void runP2Program(){
-        System.out.println(multiplyThenAddAllProductPairs(this.productPairListWithOperators));
+    public int runP2Program(){
+        return getSafeReportsCountWithProblemDampener();
     }
 }
